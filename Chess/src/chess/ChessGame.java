@@ -1,5 +1,4 @@
 package chess;
-
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -10,7 +9,7 @@ public class ChessGame {
 
 	public static void main(String[] args) {
 
-		new Board();	//TODO add figure, top, el pasan, sah, tajmer, pijun u kraljicu, mat, pat
+		new Board(); // TODO add figure, sah, rokada, tajmer, pijun u kraljicu, mat, pat
 	}
 }
 
@@ -21,8 +20,14 @@ class Board {
 	JButton[][] cell;
 	figura[][] figure;
 	JLabel label;
-	boolean previous;// is there previous position (checked figure)
+	boolean check;
+	int[] wKing = new int[2], bKing = new int[2]; // kings positions
+	int[] src = new int[2];
+
+	boolean previous; // is there previous position (checked figure)
 	int x, y; // positions of previous position
+	boolean EnPassant;
+	int XeP, YeP; // position of moved pawn
 
 	class figura {
 		int figura = 0; // prazno 0, pesak 1, lovac 2, konj 3, top 4, kraljica 5, kralj 6
@@ -57,7 +62,9 @@ class Board {
 		panel.setLayout(null);
 		cell = new JButton[8][8];
 		figure = new figura[8][8];
+		check = false;
 		previous = false;
+		EnPassant = false;
 
 		for (int i = 0; i < 8; i++)
 			for (int j = 0; j < 8; j++) {
@@ -75,19 +82,20 @@ class Board {
 					public void actionPerformed(ActionEvent e) {
 						if (figure[p][q].figura != 0 && !previous) {
 							checkPiece(p, q);
-						} else if (figure[p][q].figura == 0 && previous && (x != p || y != q)) {
+						} else if (previous) {
 							if ((x + y) % 2 == 0)
 								cell[x][y].setBackground(Color.DARK_GRAY);
 							else
 								cell[x][y].setBackground(Color.WHITE);
-							movePiece(p, q);
-						}
-						else if (figure[p][q].figura != 0 && x != p && y != q) {
-							if ((x + y) % 2 == 0)
-								cell[x][y].setBackground(Color.DARK_GRAY);
-							else
-								cell[x][y].setBackground(Color.WHITE);
-							eatPiece(p, q);
+							previous = false;
+							if (x != p || y != q) {
+								movePiece(p, q);
+								if(check && isCheck(p, q)) {
+									figura f=new figura(figure[x][y].figura, figure[x][y].boja, figure[x][y].positionX, figure[x][y].positionY, figure[x][y].cell);
+									figure[x][y]=figure[p][q];
+									figure[p][q]=f;									
+								} else if(check && !isCheck(p, q)) check=false;
+							}
 						}
 					}
 				});
@@ -126,9 +134,11 @@ class Board {
 					figure[i][j] = new figura(2, true, i, j, cell);
 				else if (i == 7 && j == 4)
 					figure[i][j] = new figura(5, true, i, j, cell);
-				else if (i == 7 && j == 3)
+				else if (i == 7 && j == 3) {
 					figure[i][j] = new figura(6, true, i, j, cell);
-				else
+					wKing[0] = i;
+					wKing[1] = j;
+				} else
 					figure[i][j] = new figura(0, true, i, j, cell);
 
 		panel.setBackground(Color.pink);
@@ -154,28 +164,35 @@ class Board {
 		return false;
 	}
 
-	private boolean moveRook(int p, int q) {//TODO ravnonkurcu
+	private boolean moveRook(int p, int q) {
 		int xx = x, yy = y;
 		if (!(xx == p && yy == q)) {
 			if (xx == p) {
-				while(yy!=q) {
-					if(yy>q)yy--;
-					else yy++;
-					if(yy==q) return true;
-					else if (figure[xx][yy].figura !=0 || yy<0 || yy>7)
+				while (yy != q) {
+					if (yy > q)
+						yy--;
+					else
+						yy++;
+					if (yy == q)
+						return true;
+					else if (figure[xx][yy].figura != 0 || yy < 0 || yy > 7)
 						return false;
 				}
-			}if (yy==q) {
-				while(xx!=p) {
-					if(xx>p)xx--;
-					else xx++;
-					if(xx==p) return true;
-					else if (figure[xx][yy].figura !=0 || xx<0 || xx> 7)
+			}
+			if (yy == q) {
+				while (xx != p) {
+					if (xx > p)
+						xx--;
+					else
+						xx++;
+					if (xx == p)
+						return true;
+					else if (figure[xx][yy].figura != 0 || xx < 0 || xx > 7)
 						return false;
 				}
 			}
 		}
-			return false;
+		return false;
 	}
 
 	private boolean moveBishop(int p, int q) {
@@ -212,98 +229,93 @@ class Board {
 	}
 
 	protected void movePiece(int p, int q) {
-		previous = false;
 
-		switch (figure[x][y].figura) {
-		case 1: {
-			if (figure[x][y].boja && ((x - p == 1) || (x == 6 && p == 4 && figure[5][q].figura == 0)) && y == q)
-				changePositions(p, q);
-			else if (!figure[x][y].boja && ((p - x == 1) || (x == 1 && p == 3 && figure[2][q].figura == 0)) && y == q)
-				changePositions(p, q);
-			break;
-		}
-		case 2: {
-			if (moveBishop(p, q))
-				changePositions(p, q);
-			break;
-		}
-		case 3: {
-			if (moveKnight(p, q)) {
-				changePositions(p, q);
-			}
-			break;
-		}
-		case 4: {
-			if (moveRook(p, q)) {
-				changePositions(p, q);
-			}
-			break;
-		}
-		case 5: {
-			if (moveRook(p, q) || moveBishop(p, q)) {
-				changePositions(p, q);
-			}
-			break;
-		}
-		case 6: {
-			if (moveKing(p, q)) {
-				changePositions(p, q);
-			}
-			break;
-		}
-		default:
-			break;
-		}
-	}
-
-	protected void eatPiece(int p, int q) {
-
-		previous = false;
-		if (figure[x][y].boja != figure[p][q].boja) {
+		if (figure[p][q].figura == 0 || figure[x][y].boja != figure[p][q].boja) {
 
 			switch (figure[x][y].figura) {
 			case 1: {
-				if (figure[x][y].boja && x == p + 1 && (y == q + 1 || y == q - 1))
-					changePositions(p, q);
-				else if (!figure[x][y].boja && x == p - 1 && (y == q + 1 || y == q - 1))
-					changePositions(p, q);
+				if (figure[p][q].figura == 0) {
+					if (EnPassant && ((p == 2 && XeP == 3) || (p == 5 && XeP == 4)) && (y == YeP + 1 || y == YeP - 1)
+							&& q == YeP) {
+						EnPassant = false;
+						figure[XeP][YeP].erase();
+						changePositions(p, q);
+					} else {
+						EnPassant = false;
+						if (figure[x][y].boja && ((x - p == 1) || (x == 6 && p == 4 && figure[5][q].figura == 0))
+								&& y == q) {
+							if (x == 6 && p == 4) {
+								EnPassant = true;
+								XeP = p;
+								YeP = q;
+							} else
+								EnPassant = false;
+							changePositions(p, q);
+						}
+						if (!figure[x][y].boja && ((p - x == 1) || (x == 1 && p == 3 && figure[2][q].figura == 0))
+								&& y == q) {
+							if (x == 1 && p == 3) {
+								EnPassant = true;
+								XeP = p;
+								YeP = q;
+							} else
+								EnPassant = false;
+							changePositions(p, q);
+						}
+					}
+				} else {
+					EnPassant = false;
+					if (figure[x][y].boja && x == p + 1 && (y == q + 1 || y == q - 1))
+						changePositions(p, q);
+					else if (!figure[x][y].boja && x == p - 1 && (y == q + 1 || y == q - 1))
+						changePositions(p, q);
+				}
 				break;
 			}
 			case 2: {
 				if (moveBishop(p, q)) {
+					EnPassant = false;
 					changePositions(p, q);
 				}
 				break;
 			}
 			case 3: {
 				if (moveKnight(p, q)) {
+					EnPassant = false;
 					changePositions(p, q);
 				}
 				break;
 			}
-			case 4: { 
+			case 4: {
 				if (moveRook(p, q)) {
+					EnPassant = false;
 					changePositions(p, q);
 				}
 				break;
 			}
 			case 5: {
 				if (moveRook(p, q) || moveBishop(p, q)) {
+					EnPassant = false;
 					changePositions(p, q);
 				}
 				break;
 			}
 			case 6: {
 				if (moveKing(p, q)) {
-					changePositions(p, q);
+					EnPassant = false;
+					if (figure[x][y].boja && p + 1 != bKing[0] && p - 1 != bKing[0] && q + 1 != bKing[1]
+							&& q - 1 != bKing[1])
+						changePositions(p, q);
+					if (!figure[x][y].boja && p + 1 != wKing[0] && p - 1 != wKing[0] && q + 1 != wKing[1]
+							&& q - 1 != wKing[1])
+						changePositions(p, q);
 				}
 				break;
 			}
-			default: {
-			}
+			default:
+				break;
 			}
 		}
-
 	}
 
 	private void changePositions(int p, int q) {
@@ -319,88 +331,59 @@ class Board {
 		previous = true;
 	}
 
-	private boolean isCheck() {
-		for (int i = 0; i < 8; i++)
-			for (int j = 0; j < 8; j++)
-				if (kingAttack(i, j))
-					return true;
-		return false;
-	}
+	private boolean isCheck(int p, int q) {
+		if (figure[p][q].boja) {
+			x = bKing[0];
+			y = bKing[1];
+		} else {
+			x = wKing[0];
+			y = wKing[1];
+		}
+		x += p; // x, y should be p, q
+		y += q;
+		p = x - p;
+		q = y - q;
+		x = x - p;
+		y = y - q;
+		switch (figure[p][q].figura) {
+		case 1:
+			if (figure[x][y].boja && p == x + 1 && (y == q + 1 || y == q - 1))
+				return true;
+			else if (!figure[x][y].boja && p == x - 1 && (y == q + 1 || y == q - 1))
+				return true;
+			break;
 
-	private boolean kingAttack(int i, int j) {
-		// TODO Auto-generated method stub
-		switch (figure[i][j].figura) {
-		case 1: {
-			if (figure[i][j].boja && (figure[i - 1][j - 1].figura == 6 || figure[i - 1][j + 1].figura == 6))
+		case 2:
+			if (moveBishop(p, q))
 				return true;
-			if (!figure[i][j].boja && (figure[i + 1][j - 1].figura == 6 || figure[i + 1][j + 1].figura == 6))
-				return true;
-		}
-		case 2: {
-			return checkBishop(i,j);
-		}
+			break;
+
 		case 3: {
-			return checkKnight(i,j);
+			if (moveKnight(p, q))
+				return true;
+			break;
 		}
 		case 4: {
-
+			if (moveRook(p, q))
+				return true;
+			break;
 		}
 		case 5: {
-
+			if (moveRook(p, q) || moveBishop(p, q))
+				return true;
+			break;
 		}
-		case 6: {
-
+		default:
+			break;
 		}
-		default:return false;
-		}
-
-		
-	}
-
-	private boolean checkKnight(int p, int q) {
-		for(int i=p-2;i<=p+2;i++)
-			for(int j=q-2;j<=q+2;j++) {
-				if(i>=0&&i<8&&j>=0&&j<8) {
-					//TODO provera tih 8 tacaka i ako da onda return true;					
-				}
-			}
 		return false;
 	}
 
-	private boolean checkBishop(int i, int j) {
-
-		int ii = i + 1, jj = j + 1;
-		while (ii >= 0 && ii < 8 && jj >= 0 && jj < 8 && figure[ii][jj].figura == 0) {
-			ii++;
-			jj++;
-		}
-		if (figure[ii][jj].figura == 6&& figure[ii][jj].boja!=figure[i][j].boja)
-			return true;
-		ii = i - 1;
-		jj = j - 1;
-		while (ii >= 0 && ii < 8 && jj >= 0 && jj < 8 && figure[ii][jj].figura == 0) {
-			ii--;
-			jj--;
-		}
-		if (figure[ii][jj].figura == 6&& figure[ii][jj].boja!=figure[i][j].boja)
-			return true;
-		ii = i + 1;
-		jj = j - 1;
-		while (ii >= 0 && ii < 8 && jj >= 0 && jj < 8 && figure[ii][jj].figura == 0) {
-			ii++;
-			jj--;
-		}
-		if (figure[ii][jj].figura == 6&& figure[ii][jj].boja!=figure[i][j].boja)
-			return true;
-		ii = i - 1;
-		jj = j + 1;
-		while (ii >= 0 && ii < 8 && jj >= 0 && jj < 8 && figure[ii][jj].figura == 0) {
-			ii--;
-			jj++;
-		}
-		if (figure[ii][jj].figura == 6&& figure[ii][jj].boja!=figure[i][j].boja)
-			return true;
-		return false;
+	private void setCheck() {
+		// TODO Auto-generated method stub
+		check = true;
+		src[0] = x;
+		src[1] = y;
 	}
 
 }
